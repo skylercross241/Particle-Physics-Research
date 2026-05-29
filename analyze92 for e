@@ -1,0 +1,54 @@
+#include "TFile.h"
+#include "TTree.h"
+#include "TH1F.h"
+#include "TCanvas.h"
+#include <vector>
+#include <iostream>
+
+int main() {
+
+  // Open the ROOT file created by main92.cc.
+  TFile *file = TFile::Open("pytree.root", "READ");
+  if (!file || file->IsZombie()) {
+    std::cerr << "Could not open pytree.root" << std::endl;
+    return 1;
+  }
+
+  // Get the tree named T.
+  TTree *T = (TTree*) file->Get("T");
+  if (!T) {
+    std::cerr << "Could not find tree T in pytree.root" << std::endl;
+    return 1;
+  }
+
+  // Set up branch pointer for e.
+  std::vector<double> *e = nullptr;
+  T->SetBranchAddress("e", &e);
+
+  // Create histogram.
+  TH1F *hE = new TH1F(
+    "hE",
+    "Energy of final-state charged particles; E [GeV]; Entries",
+    100, 0, 100
+  );
+
+  // Loop over tree entries/events.
+  for (int iEntry = 0; iEntry < T->GetEntries(); ++iEntry) {
+    T->GetEntry(iEntry);
+
+    // Loop over particles in this event.
+    for (double energy : *e) {
+      hE->Fill(energy);
+    }
+  }
+
+  // Draw histogram.
+  TCanvas *c1 = new TCanvas("c1", "e histogram", 800, 600);
+  c1->SetLogy();
+  hE->Draw("hist");
+  c1->SaveAs("e_hist.png");
+
+  file->Close();
+
+  return 0;
+}
