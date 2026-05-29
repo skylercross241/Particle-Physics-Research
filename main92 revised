@@ -1,0 +1,90 @@
+// main92.cc is a part of the PYTHIA event generator.
+// Copyright (C) 2023 Torbjorn Sjostrand.
+// PYTHIA is licenced under the GNU GPL v2 or later, see COPYING for details.
+// Please respect the MCnet Guidelines, see GUIDELINES for details.
+
+// Keywords: analysis; root;
+
+// This is a simple test program.
+// Modified by Rene Brun and Axel Naumann to put the Pythia::event
+// into a TTree.
+
+// Header file to access Pythia 8 program elements.
+#include "Pythia8/Pythia.h"
+
+// ROOT, for saving Pythia events as trees in a file.
+#include "TTree.h"
+#include "TFile.h"
+#include <vector>
+
+using namespace Pythia8;
+
+int main() {
+
+  // Create Pythia instance and set it up to generate hard QCD processes
+  // above pTHat = 20 GeV for pp collisions at 14 TeV.
+  Pythia pythia;
+  pythia.readString("HardQCD:all = on");
+  pythia.readString("PhaseSpace:pTHatMin = 20.");
+  pythia.readString("Beams:eCM = 14000.");
+  pythia.init();
+
+  // Set up the ROOT TFile and TTree.
+  TFile *file = TFile::Open("pytree.root", "recreate");
+  TTree *T = new TTree("T", "Final-state charged particles");
+
+  // Vectors that will hold only final-state charged particles for each event.
+  std::vector<int> id;
+  std::vector<double> px;
+  std::vector<double> py;
+  std::vector<double> pz;
+  std::vector<double> e;
+  std::vector<double> pT;
+
+  T->Branch("id", &id);
+  T->Branch("px", &px);
+  T->Branch("py", &py);
+  T->Branch("pz", &pz);
+  T->Branch("e", &e);
+  T->Branch("pT", &pT);
+
+ // Begin event loop. Generate event; skip if generation aborted.
+  for (int iEvent = 0; iEvent < 100; ++iEvent) {
+    if (!pythia.next()) continue;
+
+    // Clear vectors at the start of each event.
+    id.clear();
+    px.clear();
+    py.clear();
+    pz.clear();
+    e.clear();
+    pT.clear();
+
+    // Save only final-state charged particles into the TTree.
+    for (int i = 0; i < pythia.event.size(); ++i) {
+      if (pythia.event[i].isFinal() && pythia.event[i].isCharged()) {
+        id.push_back(pythia.event[i].id());
+        px.push_back(pythia.event[i].px());
+        py.push_back(pythia.event[i].py());
+        pz.push_back(pythia.event[i].pz());
+        e.push_back(pythia.event[i].e());
+        pT.push_back(pythia.event[i].pT());
+      }
+    }
+
+    T->Fill();
+
+  // End event loop.
+  }
+
+  // Statistics on event generation.
+  pythia.stat();
+
+  //  Write tree.
+  T->Print();
+  T->Write();
+  delete file;
+
+  // Done.
+  return 0;
+}
